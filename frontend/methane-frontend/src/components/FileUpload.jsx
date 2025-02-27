@@ -31,7 +31,7 @@ const FileUpload = () => {
     try {
       console.log(email);
       const response = await axios.post(
-        'http://127.0.0.1:5000/upload', // Replace with actual API endpoint
+        'https://methane-analysis.onrender.com/upload', // Replace with actual API endpoint
         formData,
         {
           headers: {

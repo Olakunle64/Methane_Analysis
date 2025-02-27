@@ -4,7 +4,7 @@ from azure.storage.blob import BlobServiceClient
 import os
 import pandas as pd
 from io import BytesIO
-from api.functions import send_email
+from functions import send_email
 from flask_swagger_ui import get_swaggerui_blueprint
 
 app = Flask(__name__)

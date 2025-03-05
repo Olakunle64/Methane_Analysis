@@ -1,14 +1,30 @@
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobClient, ContainerClient, BlobServiceClient
+from time import sleep
 import os
 import pandas as pd
 from io import BytesIO
-from functions import send_email
 from flask_swagger_ui import get_swaggerui_blueprint
+from ydata_profiling import ProfileReport
+import warnings
+import numpy as np
+from getpass import getpass
+import os
+import glob
+import pickle
+import gdown
+from functions import *
+
+
 
 app = Flask(__name__)
 CORS(app)
+
+ALLOWED_EXTENSIONS = {'xls', 'xlsx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Setting up Swagger documentation
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
@@ -58,44 +74,90 @@ def upload():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
-    email = request.form['email']
-    if email == '':
+    # ✅ Ensure file is an Excel file
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file type. Only Excel files (.xls, .xlsx) are allowed.'}), 400
+
+    emails = request.form['emails']
+    if emails == '':
         return jsonify({'error': 'No email provided'}), 400
-    # print(f"email: {request.form['email']}")
     # return jsonify({'message': 'File uploaded successfully'})
+
     try:
-        # Read the Excel file into a DataFrame
-        df = pd.read_excel(file)
+        # ===================== Load ground truth data  ===================== #
+        container_name = "cornell"
+        blob_name = "ground_truth.pkl"
 
-        # Compute methane intensity
-        df["Methane_Intensity_g_per_L"] = df["Methane_Emission_g_per_day"] / df["Milk_Production_L_per_day"]
+        blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+        blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
-        # Convert DataFrame to CSV in memory
-        fileName = file.filename.split('.')
-        if len(fileName) > 1:
-            output_file_name = f"{fileName[0]}_processed.csv"
-        else:
-            output_file_name = f"{file.filename}_processed.csv"
-        # output_file_name = f"{file.filename}_processed.csv"
-        output_buffer = BytesIO()
-        df.to_csv(output_buffer, index=False)
-        output_buffer.seek(0)
+        try:
+            # Download the blob content as a stream
+            download_stream = blob_client.download_blob()
+            blob_data = download_stream.readall()  # Read the entire content of the blob
+            # Deserialize the pickle content into a Python object
+            ground_truth = pickle.loads(blob_data)
+        except Exception as e:
+            print(f"Failed to read the pickle file from blob storage: {e}")
+            return jsonify({'error': f"Failed to read the pickle file from blob storage: {e}"}), 500
+
+        # ===================== Load Excel data from the user into a dataframe ===================== #
+        excelData = pd.read_excel(file, sheet_name=None, header=None)
+
+        # delete all the existing html files in the directory.
+        delete_html_files_in_dir()
+        
+        # ===================== Delete all .html files from the "uploads" container ===================== #
+        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+        delete_html_files_in_container(container_client)
+
+
+        # ===================== RUN ALL CHECKS ===================== #
+        output_messages = []  # Mismatches and extra column checks
+        output_messages_columns = []  # Column validation (nulls, types, outliers)
+
+        compare_with_ground_truth(ground_truth, excelData, output_messages)
+        check_data_beyond_last_variable(excelData, output_messages)
+
+        for sheet_name, df in excelData.items():
+            if sheet_name == "ReadMe" or df.empty:
+                continue
+            output_messages_columns.append(f"\nSheet '{sheet_name}':")  # Include sheet name once
+            for col_index, col_name in enumerate(df.columns, start=1):
+                col_letter = chr(64 + col_index)
+                columnValidation(df[col_name], col_letter, sheet_name, output_messages_columns)
+
+        reports = generate_report_per_sheet(excelData)  # Now returns filenames
 
         # Upload processed file to Azure Blob Storage
-        processed_blob_client = blob_service_client.get_blob_client(container=CONTAINER_NAME, blob=output_file_name)
-        processed_blob_client.upload_blob(output_buffer, overwrite=True)
+        for report_filename in reports:
+            with open(report_filename, "rb") as report_file:
+                processed_blob_client = blob_service_client.get_blob_client(
+                    container=CONTAINER_NAME, blob=report_filename
+                )
+                processed_blob_client.upload_blob(report_file.read(), overwrite=True)
+                print(f"Uploaded: {report_filename}")
+                sleep(2)  # Prevent rate limit issues
 
-        # # Delete original file from Blob Storage
-        # original_blob_client = blob_service_client.get_blob_client(container=CONTAINER_NAME, blob=file.filename)
-        # original_blob_client.delete_blob()
 
-        # Generate URL of the processed file
-        processed_file_url = f"https://methanedata.blob.core.windows.net/{CONTAINER_NAME}/{output_file_name}"
+        # Generate URL of the processed files folder
+        processed_file_url = f"https://methanedata.blob.core.windows.net/{CONTAINER_NAME}"
+
         sender_email = os.getenv("EMAIL")
         app_password = os.getenv("APP_PASSWORD")
-        send_email(sender_email, app_password, email, processed_file_url)
+        recipient_emails = emails.split(',')  # Add your recipients
 
-        return jsonify({'message': 'File processed and uploaded successfully', 'file_url': processed_file_url})
+        send_email_with_reports(
+            sender_email, app_password, recipient_emails,
+            output_messages, output_messages_columns
+        )
+
+        return jsonify(
+            {
+                'message': 'File processed and uploaded successfully',
+                'file_url': processed_file_url
+            }
+        )
     
     except Exception as e:
         print(e)
@@ -138,6 +200,8 @@ def list_files():
         return jsonify({'files': files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
 
 
 if __name__ == '__main__':

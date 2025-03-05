@@ -1,0 +1,6 @@
+methane-project-447416-37ceebcb3870.json
+venv/
+*.html
+**/__pycache__/
+test_data.xlsx
+

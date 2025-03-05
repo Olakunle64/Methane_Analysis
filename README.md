@@ -28,12 +28,9 @@ A prototype version of this system has been developed to demonstrate the archite
   - Accepts file and email input.
   - Processes the file and performs basic operations.
   - Uploads the processed file to Azure Blob Storage.
-  - Sends an email with the processed file link.
+  - Sends an email with the processed files and link.
 - **Swagger Documentation**: API endpoints are documented for easy testing.
 
-⚠️ **Limitations of the Prototype**
-
-- The full data validation, profiling logic, and supported file types are not yet fully implemented.
 
 🚀 **How to Run the Prototype**
 

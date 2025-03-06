@@ -39,3 +39,4 @@ ydata-profiling
 azure-storage-blob
 gdown
 gunicorn
+IPython

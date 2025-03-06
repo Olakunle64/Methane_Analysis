@@ -218,33 +218,18 @@ def generate_report_per_sheet(excel_data):
     for sheet_name, df in excel_data.items():
         if sheet_name == "ReadMe" or df.empty:
             continue
-
         start_keyword = 'researchIdentifier' if sheet_name == 'Animal' else 'animalIdentifier'
         processed_df = process_sheet(df, start_keyword)
-
-        # ✅ Ensure processed_df is a valid DataFrame
-        if processed_df is None or isinstance(processed_df, float) or not isinstance(processed_df, pd.DataFrame):
-            print(f"❌ Warning: Invalid processed_df in sheet '{sheet_name}', skipping.")
+        if processed_df is None or processed_df.empty:
             continue
 
-        if processed_df.empty:
-            print(f"⚠️ Warning: Empty DataFrame in sheet '{sheet_name}', skipping.")
-            continue
+        report_filename = f"{sheet_name}_report.html"
+        report = ProfileReport(processed_df, title=f"Profiling Report for {sheet_name}", explorative=True)
+        report.to_file(report_filename)  # Save to file
 
-        try:
-            report_filename = f"{sheet_name}_report.html"
-            report = ProfileReport(processed_df, title=f"Profiling Report for {sheet_name}", explorative=True)
-            report.to_file(report_filename)  # Save to file
-
-            reports.append(report_filename)  # Store filename for later use
-            print(f"✅ Successfully generated report: {report_filename}")
-
-        except Exception as e:
-            print(f"❌ Error generating report for sheet '{sheet_name}': {e}")
-            continue
+        reports.append(report_filename)  # Store filename for later use
 
     return reports  # ✅ Returns list of HTML report filenames
-
 
 
 def send_email_with_reports(sender_email, app_password, recipient_emails, output_messages, output_messages_columns):

@@ -147,10 +147,10 @@ def upload():
         app_password = os.getenv("APP_PASSWORD")
         recipient_emails = emails.split(',')  # Add your recipients
 
-        send_email_with_reports(
-            sender_email, app_password, recipient_emails,
-            output_messages, output_messages_columns
-        )
+        # send_email_with_reports(
+        #    sender_email, app_password, recipient_emails,
+        #    output_messages, output_messages_columns
+        # )
 
         return jsonify(
             {

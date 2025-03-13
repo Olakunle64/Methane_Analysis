@@ -214,10 +214,13 @@ def process_sheet(df, start_keyword, data_start_row=4):
 
 def generate_report_per_sheet(excel_data):
     reports = []  # Store filenames to return
+    processed_count = 1
 
     for sheet_name, df in excel_data.items():
         if sheet_name == "ReadMe" or df.empty:
             continue
+        if processed_count > 3:
+            break
         start_keyword = 'researchIdentifier' if sheet_name == 'Animal' else 'animalIdentifier'
         processed_df = process_sheet(df, start_keyword)
         if processed_df is None or processed_df.empty:
@@ -230,6 +233,7 @@ def generate_report_per_sheet(excel_data):
         report.to_file(report_filename)  # Save to file
 
         reports.append(report_filename)  # Store filename for later use
+        processed_count += 1
 
     return reports  # ✅ Returns list of HTML report filenames
 

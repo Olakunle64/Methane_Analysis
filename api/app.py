@@ -130,7 +130,7 @@ def upload():
         reports = generate_report_per_sheet(excelData)  # Now returns filenames
 
         # Upload processed file to Azure Blob Storage
-        for report_filename in reports[:3]:
+        for report_filename in reports[:2]:
             with open(report_filename, "rb") as report_file:
                 processed_blob_client = blob_service_client.get_blob_client(
                     container=CONTAINER_NAME, blob=report_filename

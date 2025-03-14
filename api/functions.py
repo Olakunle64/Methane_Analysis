@@ -219,7 +219,7 @@ def generate_report_per_sheet(excel_data):
     for sheet_name, df in excel_data.items():
         if sheet_name == "ReadMe" or df.empty:
             continue
-        if processed_count > 3:
+        if processed_count > 1:
             break
         start_keyword = 'researchIdentifier' if sheet_name == 'Animal' else 'animalIdentifier'
         processed_df = process_sheet(df, start_keyword)

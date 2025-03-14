@@ -34,10 +34,14 @@ tzdata==2025.1
 urllib3==2.2.3
 werkzeug==3.0.6
 zipp==3.20.2
+<<<<<<< HEAD
 numpy==1.24.4
 ydata-profiling==4.12.0
 matplotlib==3.7.5
 azure-storage-blob
+=======
+ydata-profiling
+>>>>>>> 13be069b79a46b1a9253fc7ad51a33ce961fa962
 gdown
 gunicorn
 IPython

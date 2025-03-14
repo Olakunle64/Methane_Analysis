@@ -130,7 +130,7 @@ def upload():
         reports = generate_report_per_sheet(excelData)  # Now returns filenames
 
         # Upload processed file to Azure Blob Storage
-        for report_filename in reports:
+        for report_filename in reports[:3]:
             with open(report_filename, "rb") as report_file:
                 processed_blob_client = blob_service_client.get_blob_client(
                     container=CONTAINER_NAME, blob=report_filename
@@ -147,10 +147,10 @@ def upload():
         app_password = os.getenv("APP_PASSWORD")
         recipient_emails = emails.split(',')  # Add your recipients
 
-        # send_email_with_reports(
-        #    sender_email, app_password, recipient_emails,
-        #    output_messages, output_messages_columns
-        # )
+        send_email_with_reports(
+        sender_email, app_password, recipient_emails,
+        output_messages, output_messages_columns
+        )
 
         return jsonify(
             {
